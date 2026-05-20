@@ -1,4 +1,4 @@
-export type CategoryTopic = "characters" | "locations" | "special" | "royal" | "disaster" | "duel" | "obstacle";
+export type CategoryTopic = "characters" | "locations" | "nature" | "royal" | "disaster" | "duel";
 export type GameView = "home" | "game" | "result" | "settings";
 export type TeamId = "fire" | "ice" | "forest" | "storm";
 
