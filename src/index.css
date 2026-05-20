@@ -388,3 +388,31 @@
 .burst {
   animation: burst 0.6s ease-out forwards;
 }
+
+/* Settings inputs */
+.settings-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: rgba(255, 245, 200, 0.9);
+  font-family: "Golos Text", sans-serif;
+  font-size: 0.875rem;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  margin-top: 4px;
+}
+.settings-input:focus {
+  border-color: rgba(245, 200, 66, 0.5);
+  box-shadow: 0 0 0 2px rgba(245, 200, 66, 0.1);
+}
+.settings-input option {
+  background: #1a0a2e;
+  color: rgba(255, 245, 200, 0.9);
+}
+select.settings-input {
+  cursor: pointer;
+}

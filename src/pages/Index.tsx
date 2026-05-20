@@ -1,200 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-
-type CategoryTopic = "characters" | "locations" | "special" | "royal" | "disaster" | "duel" | "obstacle";
-type GameView = "home" | "game" | "result";
-type TeamId = "fire" | "ice" | "forest" | "storm";
-
-interface Quest {
-  id: number;
-  topic: CategoryTopic;
-  title: string;
-  description: string;
-  points: number;
-  timeLimit: number;
-  emoji: string;
-}
-
-interface Zone {
-  id: string;
-  name: string;
-  emoji: string;
-  color: string;
-  quests: Quest[];
-}
-
-interface Team {
-  id: TeamId;
-  name: string;
-  emoji: string;
-  score: number;
-  color: string;
-  borderStyle: React.CSSProperties;
-  glowStyle: React.CSSProperties;
-}
-
-const TOPIC_META: Record<CategoryTopic, { label: string; emoji: string; color: string }> = {
-  characters:  { label: "Персонажи",           emoji: "🧙", color: "#a78bfa" },
-  locations:   { label: "Локации",             emoji: "🗺️", color: "#34d399" },
-  special:     { label: "Спец. задания",       emoji: "⭐", color: "#f5c842" },
-  royal:       { label: "Указы Короля",        emoji: "👑", color: "#fb923c" },
-  disaster:    { label: "Стихийные бедствия",  emoji: "🌪️", color: "#f87171" },
-  duel:        { label: "Дуэли",               emoji: "⚔️", color: "#60a5fa" },
-  obstacle:    { label: "Преграды",            emoji: "🚧", color: "#e879f9" },
-};
-
-const ZONES: Zone[] = [
-  {
-    id: "sea", name: "Море", emoji: "🌊", color: "#0ea5e9",
-    quests: [
-      { id: 101, topic: "characters",  title: "Капитан пиратов",      description: "Изобразите капитана пиратов — жесты, походка, командный голос. Команда угадывает кто перед ними.", points: 120, timeLimit: 60, emoji: "🏴‍☠️" },
-      { id: 102, topic: "locations",   title: "Затонувший город",     description: "Опишите затонувший город словами так, чтобы команда смогла нарисовать его план за 90 секунд.", points: 140, timeLimit: 90, emoji: "🏙️" },
-      { id: 103, topic: "special",     title: "Бутылочная почта",     description: "Напишите послание в бутылке в 10 слов — передайте его команде соперников, они должны угадать смысл.", points: 150, timeLimit: 75, emoji: "🍾" },
-      { id: 104, topic: "royal",       title: "Указ об акулах",       description: "Король запретил бояться акул. Вся команда хором называет 5 морских существ страшнее акулы — на это 30 секунд.", points: 100, timeLimit: 30, emoji: "🦈" },
-      { id: 105, topic: "disaster",    title: "Шторм 9 баллов",       description: "Команда изображает корабль в шторм: кто-то рулит, кто-то черпает воду, кто-то кричит «SOS» — удержитесь 45 секунд.", points: 130, timeLimit: 45, emoji: "⛈️" },
-      { id: 106, topic: "duel",        title: "Морская угадайка",     description: "Два игрока от разных команд описывают одно морское существо — побеждает тот чья команда угадает быстрее.", points: 160, timeLimit: 90, emoji: "🐙" },
-      { id: 107, topic: "obstacle",    title: "Водоворот",            description: "Нельзя использовать слова «море», «вода», «волна» — опишите морской пейзаж за 60 секунд.", points: 110, timeLimit: 60, emoji: "🌀" },
-    ],
-  },
-  {
-    id: "mountains", name: "Горы", emoji: "⛰️", color: "#78716c",
-    quests: [
-      { id: 201, topic: "characters",  title: "Дух горы",             description: "Один игрок — великий горный дух. Произнесите речь духа горы — торжественно, медленно, мощно.", points: 120, timeLimit: 60, emoji: "🗿" },
-      { id: 202, topic: "locations",   title: "Пик туманов",          description: "Опишите вершину, где живут облака: назовите 7 вещей которые там могли бы находиться.", points: 130, timeLimit: 70, emoji: "☁️" },
-      { id: 203, topic: "special",     title: "Альпийский сигнал",    description: "Передайте сообщение команде через эхо — каждый игрок повторяет слово добавляя своё. Цепочка не должна прерваться.", points: 150, timeLimit: 90, emoji: "📢" },
-      { id: 204, topic: "royal",       title: "Указ о вершинах",      description: "Король велит завоевать гору словами. Убедите остальных что ваша воображаемая гора — лучшая в мире за 40 секунд.", points: 110, timeLimit: 40, emoji: "👑" },
-      { id: 205, topic: "disaster",    title: "Лавина!",              description: "Объявлена лавина. Вся команда за 20 секунд выстраивается по росту — молча, без слов.", points: 140, timeLimit: 20, emoji: "🏔️" },
-      { id: 206, topic: "duel",        title: "Битва скалолазов",     description: "Два игрока из разных команд изображают скалолаза на воображаемой стене — кто продержится дольше.", points: 160, timeLimit: 60, emoji: "🧗" },
-      { id: 207, topic: "obstacle",    title: "Туман в ущелье",       description: "Нельзя открывать глаза. Ведущий с закрытыми глазами находит спрятанный предмет по голосовым подсказкам команды.", points: 130, timeLimit: 80, emoji: "🌫️" },
-    ],
-  },
-  {
-    id: "unknown", name: "Неизведанные земли", emoji: "🗺️", color: "#8b5cf6",
-    quests: [
-      { id: 301, topic: "characters",  title: "Первооткрыватель",     description: "Вы открыли новую землю. Назовите её, опишите 3 невиданных существа и придумайте флаг за 60 секунд.", points: 150, timeLimit: 60, emoji: "🧭" },
-      { id: 302, topic: "locations",   title: "Карта неизвестного",   description: "Нарисуйте карту несуществующей земли за 45 секунд, затем другая команда угадывает что там изображено.", points: 140, timeLimit: 90, emoji: "📍" },
-      { id: 303, topic: "special",     title: "Новый язык",           description: "Изобретите 5 слов на несуществующем языке и обучите им всю команду — проверка: пусть команда произнесёт их.", points: 170, timeLimit: 90, emoji: "🔤" },
-      { id: 304, topic: "royal",       title: "Указ об открытии",     description: "Король требует отчёт об экспедиции — расскажите о ней максимально драматично за 45 секунд.", points: 120, timeLimit: 45, emoji: "📜" },
-      { id: 305, topic: "disaster",    title: "Землетрясение",        description: "Земля уходит из-под ног! Все игроки 30 секунд не могут стоять на месте и при этом молчат — кто остановится выбывает.", points: 130, timeLimit: 30, emoji: "💥" },
-      { id: 306, topic: "duel",        title: "Дуэль картографов",    description: "Два игрока одновременно рисуют одну и ту же несуществующую страну — команды голосуют чья лучше.", points: 160, timeLimit: 60, emoji: "✏️" },
-      { id: 307, topic: "obstacle",    title: "Запретная зона",       description: "Нельзя называть страны, города и имена собственные. Расскажите историю путешественника за 60 секунд.", points: 120, timeLimit: 60, emoji: "🚫" },
-    ],
-  },
-  {
-    id: "foreign", name: "Чужеземье", emoji: "🌍", color: "#f59e0b",
-    quests: [
-      { id: 401, topic: "characters",  title: "Посол из далёкой страны", description: "Один игрок — посол экзотической страны. Приветствуйте хозяев на выдуманном языке с переводом.", points: 130, timeLimit: 60, emoji: "🤵" },
-      { id: 402, topic: "locations",   title: "Рынок пряностей",      description: "Опишите шумный заморский рынок — звуки, запахи, товары — за 60 секунд так чтобы все почувствовали аромат.", points: 140, timeLimit: 60, emoji: "🫙" },
-      { id: 403, topic: "special",     title: "Обряд чужеземцев",     description: "Придумайте странный ритуал приветствия на 5 движений и обучите ему всю команду за 45 секунд.", points: 160, timeLimit: 45, emoji: "🙏" },
-      { id: 404, topic: "royal",       title: "Указ о пришельцах",    description: "Король подозревает чужеземца в шпионаже. Убедите его в своей невиновности за 30 секунд.", points: 120, timeLimit: 30, emoji: "🕵️" },
-      { id: 405, topic: "disaster",    title: "Нашествие саранчи",    description: "Поля опустели! Назовите 10 блюд которые можно приготовить без зерна — у вас 40 секунд.", points: 130, timeLimit: 40, emoji: "🦗" },
-      { id: 406, topic: "duel",        title: "Торговля с чужестранцем", description: "Два игрока торгуются: один продаёт «невидимый товар», другой торгуется. Команды угадывают что продаётся.", points: 150, timeLimit: 90, emoji: "🤝" },
-      { id: 407, topic: "obstacle",    title: "Языковой барьер",      description: "Нельзя говорить на русском — объясните командным жестом три слова на выбор ведущего.", points: 140, timeLimit: 60, emoji: "🗣️" },
-    ],
-  },
-  {
-    id: "glade", name: "Поляна", emoji: "🌸", color: "#34d399",
-    quests: [
-      { id: 501, topic: "characters",  title: "Добрая фея",           description: "Сыграйте добрую фею — исполните желание любого игрока в командной сцене за 60 секунд.", points: 110, timeLimit: 60, emoji: "🧚" },
-      { id: 502, topic: "locations",   title: "Волшебный луг",        description: "Каждый игрок называет одно фантастическое растение на поляне и его магическое свойство — по кругу, без повторов.", points: 120, timeLimit: 60, emoji: "🌺" },
-      { id: 503, topic: "special",     title: "Хоровод удачи",        description: "Вся команда 30 секунд хором поёт придуманную песенку о весне — без слова «весна».", points: 140, timeLimit: 30, emoji: "🎵" },
-      { id: 504, topic: "royal",       title: "Указ о пикнике",       description: "Король устраивает пикник на поляне. Составьте меню из 7 блюд — каждое должно содержать «магический» ингредиент.", points: 110, timeLimit: 50, emoji: "🧺" },
-      { id: 505, topic: "disaster",    title: "Ливень с градом",      description: "Ливень срывает пикник! Вся команда 20 секунд спасает «воображаемые блюда» — пантомима, без слов.", points: 130, timeLimit: 20, emoji: "⛈️" },
-      { id: 506, topic: "duel",        title: "Соревнование певчих",  description: "По одному от каждой команды — кто придумает более красивое название для цветка прямо сейчас. Голосует зал.", points: 140, timeLimit: 60, emoji: "🎤" },
-      { id: 507, topic: "obstacle",    title: "Крапива на пути",      description: "Нельзя касаться пола руками. Добудьте «артефакт» с другого конца комнаты — договоритесь как.", points: 130, timeLimit: 60, emoji: "🌿" },
-    ],
-  },
-  {
-    id: "city", name: "Город", emoji: "🏙️", color: "#94a3b8",
-    quests: [
-      { id: 601, topic: "characters",  title: "Городской глашатай",   description: "Объявите последние новости города максимально драматично — придумайте 3 новости за 60 секунд.", points: 120, timeLimit: 60, emoji: "📣" },
-      { id: 602, topic: "locations",   title: "Рынок на площади",     description: "Каждый игрок — торговец на рынке. 30 секунд все одновременно рекламируют свой «товар» — побеждает громче всех.", points: 130, timeLimit: 30, emoji: "🏪" },
-      { id: 603, topic: "special",     title: "Городская легенда",    description: "Придумайте страшную городскую легенду за 45 секунд и расскажите её максимально пугающе.", points: 160, timeLimit: 45, emoji: "👻" },
-      { id: 604, topic: "royal",       title: "Указ о комендантском часе", description: "Король вводит комендантский час. Убедите стражника что у вас есть особое разрешение — 30 секунд.", points: 120, timeLimit: 30, emoji: "🌙" },
-      { id: 605, topic: "disaster",    title: "Пожар в таверне",      description: "Огонь! Команда за 15 секунд решает что спасать первым — каждый называет один предмет. Нет повторов.", points: 140, timeLimit: 15, emoji: "🔥" },
-      { id: 606, topic: "duel",        title: "Спор горожан",         description: "Два игрока спорят: чей район лучше. Каждому по 20 секунд на аргументы. Зрители голосуют.", points: 150, timeLimit: 90, emoji: "🗣️" },
-      { id: 607, topic: "obstacle",    title: "Толпа на ярмарке",     description: "Нельзя разговаривать — вся команда молча выстраивается по алфавиту имён за 30 секунд.", points: 120, timeLimit: 30, emoji: "🎪" },
-    ],
-  },
-  {
-    id: "cherry", name: "Вишнёвый сад", emoji: "🌸", color: "#f472b6",
-    quests: [
-      { id: 701, topic: "characters",  title: "Хозяйка сада",         description: "Сыграйте утончённую хозяйку поместья — проведите экскурсию по саду за 60 секунд максимально театрально.", points: 120, timeLimit: 60, emoji: "👸" },
-      { id: 702, topic: "locations",   title: "Аллея вишен",          description: "Опишите прогулку по цветущей аллее — что слышно, что видно, какой запах — не менее 5 деталей.", points: 130, timeLimit: 60, emoji: "🌳" },
-      { id: 703, topic: "special",     title: "Письмо из прошлого",   description: "Напишите письмо от жителя сада XIX века потомкам — продиктуйте его команде за 45 секунд.", points: 160, timeLimit: 45, emoji: "✉️" },
-      { id: 704, topic: "royal",       title: "Указ о вишнях",        description: "Король требует все вишни отдать в казну! Обоснуйте за 30 секунд почему этого нельзя делать.", points: 110, timeLimit: 30, emoji: "🍒" },
-      { id: 705, topic: "disaster",    title: "Вырубка сада",         description: "Слышен стук топора! Вся команда 30 секунд прощается с садом — каждый игрок одна фраза, по кругу.", points: 130, timeLimit: 30, emoji: "🪓" },
-      { id: 706, topic: "duel",        title: "Поэтический турнир",   description: "Два игрока по очереди произносят строфы стихотворения о вишне — кто первый остановится тот проиграл.", points: 150, timeLimit: 90, emoji: "📝" },
-      { id: 707, topic: "obstacle",    title: "Туман в саду",         description: "Нельзя видеть — один игрок с закрытыми глазами ищет «вишню» (любой предмет) по голосовым подсказкам.", points: 130, timeLimit: 60, emoji: "🌫️" },
-    ],
-  },
-  {
-    id: "swamp", name: "Болота", emoji: "🐊", color: "#65a30d",
-    quests: [
-      { id: 801, topic: "characters",  title: "Болотная ведьма",      description: "Сыграйте болотную ведьму — предложите зелье от любой беды команде-сопернику и опишите его состав.", points: 130, timeLimit: 60, emoji: "🧙‍♀️" },
-      { id: 802, topic: "locations",   title: "Трясина",              description: "Опишите болото так страшно чтобы никто не захотел туда идти — не менее 6 жутких деталей.", points: 120, timeLimit: 60, emoji: "🌿" },
-      { id: 803, topic: "special",     title: "Болотный пузырь",      description: "Придумайте «болотное заклинание» из 5 слов — вся команда должна произнести его одновременно, с первого раза.", points: 150, timeLimit: 45, emoji: "💬" },
-      { id: 804, topic: "royal",       title: "Указ об осушении",     description: "Король хочет осушить болото. Убедите его что болото важнее замка — 40 секунд.", points: 120, timeLimit: 40, emoji: "💧" },
-      { id: 805, topic: "disaster",    title: "Туман болот",          description: "Густой туман — никто не видит дальше шага. Вся команда молча выстраивается в ряд по дням рождения.", points: 140, timeLimit: 30, emoji: "🌫️" },
-      { id: 806, topic: "duel",        title: "Дуэль лягушек",        description: "Два игрока квакают — тот кто квакнет дольше или смешнее по версии зрителей побеждает.", points: 130, timeLimit: 60, emoji: "🐸" },
-      { id: 807, topic: "obstacle",    title: "Трясина засасывает",   description: "Нельзя поднимать ноги выше 5 см. Вся команда перемещается по комнате не отрывая ног — 20 секунд.", points: 140, timeLimit: 20, emoji: "🦶" },
-    ],
-  },
-  {
-    id: "forest", name: "Лес", emoji: "🌲", color: "#16a34a",
-    quests: [
-      { id: 901, topic: "characters",  title: "Лесной страж",         description: "Вы — древний дух леса. Допросите команду соперников: зачем они пришли в ваш лес? 60 секунд.", points: 120, timeLimit: 60, emoji: "🌳" },
-      { id: 902, topic: "locations",   title: "Чаща",                 description: "Нарисуйте мысленную карту леса — каждый игрок добавляет одно место. Не менее 5 мест.", points: 130, timeLimit: 70, emoji: "🗺️" },
-      { id: 903, topic: "special",     title: "Клич зверей",          description: "Каждый игрок выбирает лесного зверя и 30 секунд все издают его звуки одновременно. Победа если другие угадают всех.", points: 150, timeLimit: 30, emoji: "🦊" },
-      { id: 904, topic: "royal",       title: "Указ об охоте",        description: "Король объявил охоту в лесу! Спрячьте команду за 15 секунд — придумайте план куда все прячутся.", points: 120, timeLimit: 15, emoji: "🏹" },
-      { id: 905, topic: "disaster",    title: "Лесной пожар",         description: "Горит чаща! Назовите 7 животных которых надо спасти первыми — за 20 секунд, все вместе, без повторов.", points: 140, timeLimit: 20, emoji: "🔥" },
-      { id: 906, topic: "duel",        title: "Дуэль следопытов",     description: "Два игрока описывают один и тот же лесной звук. Чьё описание точнее — решает команда соперников.", points: 150, timeLimit: 90, emoji: "👂" },
-      { id: 907, topic: "obstacle",    title: "Бурелом",              description: "Нельзя ходить прямо — только зигзагом. Вся команда перемещается к цели 20 секунд без столкновений.", points: 130, timeLimit: 20, emoji: "🌪️" },
-    ],
-  },
-  {
-    id: "jokers", name: "Королевство шутов", emoji: "🃏", color: "#e879f9",
-    quests: [
-      { id: 1001, topic: "characters", title: "Придворный шут",       description: "Рассмешите команду соперников за 30 секунд — используя только мимику и жесты, без слов.", points: 140, timeLimit: 30, emoji: "🤡" },
-      { id: 1002, topic: "locations",  title: "Зал кривых зеркал",    description: "Опишите комнату где всё наоборот — небо внизу, пол вверху. Назовите 5 предметов и что с ними не так.", points: 130, timeLimit: 60, emoji: "🪞" },
-      { id: 1003, topic: "special",    title: "Шутовской указ",       description: "Придумайте самый нелепый закон королевства — зачитайте его официальным тоном за 30 секунд.", points: 160, timeLimit: 30, emoji: "📜" },
-      { id: 1004, topic: "royal",      title: "Указ смехом",          description: "Любой указ короля сегодня вступает в силу только если он произнесён смеясь. Произнесите указ команды-соперника смеясь.", points: 120, timeLimit: 30, emoji: "😂" },
-      { id: 1005, topic: "disaster",   title: "Смех-эпидемия",        description: "По команде все начинают смеяться — кто засмеётся последним тот победил. Один игрок пытается рассмешить команду.", points: 130, timeLimit: 60, emoji: "😄" },
-      { id: 1006, topic: "duel",       title: "Дуэль каламбуров",     description: "Два игрока по очереди говорят каламбуры или смешные фразы. Кто первый замолчит — проиграл.", points: 150, timeLimit: 90, emoji: "🎭" },
-      { id: 1007, topic: "obstacle",   title: "Зеркальный лабиринт",  description: "Нельзя говорить ничего кроме «да» и «нет». Объясните команде что нужно сделать за 45 секунд.", points: 140, timeLimit: 45, emoji: "🌀" },
-    ],
-  },
-  {
-    id: "village", name: "Деревня", emoji: "🏡", color: "#d97706",
-    quests: [
-      { id: 1101, topic: "characters", title: "Деревенский староста", description: "Сыграйте строгого старосту — разберите «спор» двух игроков вашей команды справедливо за 60 секунд.", points: 120, timeLimit: 60, emoji: "👴" },
-      { id: 1102, topic: "locations",  title: "Деревенская площадь",  description: "Опишите деревенскую площадь в день ярмарки — звуки, запахи, лица — не менее 6 деталей.", points: 130, timeLimit: 60, emoji: "🎪" },
-      { id: 1103, topic: "special",    title: "Рецепт бабушки",       description: "Продиктуйте «древний рецепт» деревенской стряпни из 6 ингредиентов — команда записывает и зачитывает обратно.", points: 150, timeLimit: 60, emoji: "🥘" },
-      { id: 1104, topic: "royal",      title: "Указ о налогах",       description: "Король поднял налоги! Соберите «налог» — каждый игрок отдаёт один предмет добровольно за 15 секунд.", points: 110, timeLimit: 15, emoji: "💰" },
-      { id: 1105, topic: "disaster",   title: "Засуха",               description: "Нет воды! Придумайте 5 способов добыть воду в деревне без колодца — за 30 секунд.", points: 130, timeLimit: 30, emoji: "☀️" },
-      { id: 1106, topic: "duel",       title: "Спор соседей",         description: "Два игрока спорят у чьего забора выросла тыква. Каждому по 20 секунд на доказательства. Зал решает.", points: 150, timeLimit: 80, emoji: "🎃" },
-      { id: 1107, topic: "obstacle",   title: "Грязная дорога",       description: "Нельзя касаться «грязи» — очерченной зоны пола. Вся команда перебирается с одной стороны на другую.", points: 140, timeLimit: 30, emoji: "🟫" },
-    ],
-  },
-  {
-    id: "lakeriver", name: "Озеро и Река", emoji: "🏞️", color: "#38bdf8",
-    quests: [
-      { id: 1201, topic: "characters", title: "Речная нимфа",         description: "Сыграйте нимфу реки — пригласите команду искупаться, описав реку так соблазнительно чтобы все захотели.", points: 120, timeLimit: 60, emoji: "🧜" },
-      { id: 1202, topic: "locations",  title: "Дно озера",            description: "Опишите что лежит на дне тайного озера — не менее 7 предметов с историей каждого.", points: 140, timeLimit: 75, emoji: "🐚" },
-      { id: 1203, topic: "special",    title: "Загадка водяного",     description: "Водяной загадал загадку — придумайте её за 20 секунд и задайте команде-сопернику. Если те не ответят — ваши очки.", points: 170, timeLimit: 90, emoji: "🌊" },
-      { id: 1204, topic: "royal",      title: "Указ о рыбной ловле",  description: "Король запретил ловить рыбу! Придумайте чем кормить деревню вместо рыбы — 5 идей за 30 секунд.", points: 120, timeLimit: 30, emoji: "🐟" },
-      { id: 1205, topic: "disaster",   title: "Наводнение",           description: "Вода прибывает! Команда за 20 секунд решает что поднять выше — каждый называет один предмет без повторов.", points: 140, timeLimit: 20, emoji: "💦" },
-      { id: 1206, topic: "duel",       title: "Рыбацкое хвастовство", description: "Два рыбака хвастаются уловом — рыба становится больше с каждой фразой. Кто первый засмеётся — проиграл.", points: 150, timeLimit: 90, emoji: "🎣" },
-      { id: 1207, topic: "obstacle",   title: "Переправа",            description: "Нельзя использовать ноги полностью — только пятки. Вся команда пересекает комнату за 25 секунд.", points: 140, timeLimit: 25, emoji: "🚣" },
-    ],
-  },
-];
-
-const INITIAL_TEAMS: Team[] = [
-  { id: "fire",   name: "Команда Огня",  emoji: "🔥", score: 0, color: "#ff6b35", borderStyle: { borderColor: "rgba(255,107,53,0.55)", boxShadow: "0 0 28px rgba(255,107,53,0.18)" }, glowStyle: { color: "#ff6b35", textShadow: "0 0 14px rgba(255,107,53,0.8)" } },
-  { id: "ice",    name: "Команда Льда",  emoji: "❄️", score: 0, color: "#00d4ff", borderStyle: { borderColor: "rgba(0,212,255,0.55)",   boxShadow: "0 0 28px rgba(0,212,255,0.18)"   }, glowStyle: { color: "#00d4ff", textShadow: "0 0 14px rgba(0,212,255,0.8)"   } },
-  { id: "forest", name: "Команда Леса",  emoji: "🌿", score: 0, color: "#4ade80", borderStyle: { borderColor: "rgba(74,222,128,0.55)",  boxShadow: "0 0 28px rgba(74,222,128,0.18)"  }, glowStyle: { color: "#4ade80", textShadow: "0 0 14px rgba(74,222,128,0.8)"  } },
-  { id: "storm",  name: "Команда Грозы", emoji: "⚡", score: 0, color: "#facc15", borderStyle: { borderColor: "rgba(250,204,21,0.55)",  boxShadow: "0 0 28px rgba(250,204,21,0.18)"  }, glowStyle: { color: "#facc15", textShadow: "0 0 14px rgba(250,204,21,0.8)"  } },
-];
+import type { GameView, Team, Zone, CategoryTopic } from "@/types/game";
+import { DEFAULT_TEAMS, DEFAULT_ZONES, TOPIC_META } from "@/data/gameData";
+import SettingsPage from "@/components/SettingsPage";
 
 // ─── Stars ────────────────────────────────────────────────────────────────────
 function Stars() {
@@ -256,7 +63,9 @@ function TeamCard({ team, active }: { team: Team; active: boolean }) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Index() {
   const [view, setView] = useState<GameView>("home");
-  const [teams, setTeams] = useState<Team[]>(INITIAL_TEAMS.map(t => ({ ...t })));
+  const [teamTemplates, setTeamTemplates] = useState<Team[]>(DEFAULT_TEAMS.map(t => ({ ...t })));
+  const [zones, setZones] = useState<Zone[]>(DEFAULT_ZONES.map(z => ({ ...z, quests: [...z.quests] })));
+  const [teams, setTeams] = useState<Team[]>(DEFAULT_TEAMS.map(t => ({ ...t })));
   const [activeTeamIdx, setActiveTeamIdx] = useState(0);
   const [phase, setPhase] = useState<"zone" | "topic" | "play" | "judge">("zone");
   const [timerKey, setTimerKey] = useState(0);
@@ -266,24 +75,23 @@ export default function Index() {
   const [roundNum, setRoundNum] = useState(1);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<CategoryTopic | null>(null);
-  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
-  const [activeTopic, setActiveTopic] = useState<CategoryTopic | "all">("all");
+  const [selectedQuest, setSelectedQuest] = useState<{ id: number; topic: CategoryTopic; title: string; description: string; points: number; timeLimit: number; emoji: string } | null>(null);
 
-  const totalRounds = ZONES.length * 2;
+  const totalRounds = zones.length * 2;
   const activeTeam = teams[activeTeamIdx];
 
   function startGame() {
-    setTeams(INITIAL_TEAMS.map(t => ({ ...t })));
+    setTeams(teamTemplates.map(t => ({ ...t, score: 0 })));
     setActiveTeamIdx(0); setPhase("zone"); setCompletedIds(new Set());
     setRoundNum(1); setSelectedZone(null); setSelectedTopic(null); setSelectedQuest(null);
     setView("game");
   }
 
-  function pickZone(zone: Zone) { setSelectedZone(zone); setPhase("topic"); setActiveTopic("all"); }
+  function pickZone(zone: Zone) { setSelectedZone(zone); setPhase("topic"); }
 
   function pickTopic(topic: CategoryTopic) { setSelectedTopic(topic); }
 
-  function pickQuest(quest: Quest) {
+  function pickQuest(quest: typeof selectedQuest) {
     setSelectedQuest(quest); setPhase("play"); setTimerKey(k => k + 1);
   }
 
@@ -306,18 +114,22 @@ export default function Index() {
     setSelectedZone(null); setSelectedTopic(null); setSelectedQuest(null); setPhase("zone");
   }
 
-  const topicQuests = selectedZone
-    ? selectedZone.quests.filter(q => {
-        if (completedIds.has(q.id)) return false;
-        if (activeTopic === "all" || activeTopic === selectedTopic) return q.topic === (selectedTopic || activeTopic);
-        if (activeTopic === "all") return true;
-        return q.topic === activeTopic;
-      })
-    : [];
-
   const questsForTopic = selectedZone && selectedTopic
     ? selectedZone.quests.filter(q => !completedIds.has(q.id) && q.topic === selectedTopic)
     : [];
+
+  // ── SETTINGS ──────────────────────────────────────────────────────────────
+  if (view === "settings") {
+    return (
+      <SettingsPage
+        teams={teamTemplates}
+        zones={zones}
+        onTeamsChange={setTeamTemplates}
+        onZonesChange={setZones}
+        onBack={() => setView("home")}
+      />
+    );
+  }
 
   // ── HOME ──────────────────────────────────────────────────────────────────
   if (view === "home") {
@@ -345,15 +157,18 @@ export default function Index() {
             ))}
           </div>
           <div className="grid grid-cols-2 gap-3 w-full">
-            {INITIAL_TEAMS.map(t => (
+            {teamTemplates.map(t => (
               <div key={t.id} className="magic-card p-3 text-center" style={t.borderStyle}>
                 <div className="text-2xl mb-1">{t.emoji}</div>
                 <div className="font-cinzel font-bold text-xs" style={t.glowStyle}>{t.name}</div>
               </div>
             ))}
           </div>
-          <button onClick={startGame} className="btn-gold text-xl px-12 py-4 rounded-2xl font-cinzel font-bold tracking-wider pulse-glow">⚡ Начать Квест</button>
-          <p className="text-white/30 text-sm font-golos">{ZONES.length} локаций · {ZONES.reduce((a, z) => a + z.quests.length, 0)} заданий</p>
+          <div className="flex gap-3 w-full">
+            <button onClick={startGame} className="btn-gold flex-1 text-xl py-4 rounded-2xl font-cinzel font-bold tracking-wider pulse-glow">⚡ Начать Квест</button>
+            <button onClick={() => setView("settings")} className="btn-magic px-5 py-4 rounded-2xl font-cinzel font-bold text-yellow-100/70 hover:text-yellow-100 transition-colors">⚙️</button>
+          </div>
+          <p className="text-white/30 text-sm font-golos">{zones.length} локаций · {zones.reduce((a, z) => a + z.quests.length, 0)} заданий</p>
         </div>
       </div>
     );
@@ -421,22 +236,18 @@ export default function Index() {
               <div className="magic-divider" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {ZONES.map(zone => {
+              {zones.map(zone => {
                 const done = zone.quests.filter(q => completedIds.has(q.id)).length;
                 const total = zone.quests.length;
-                const allDone = done === total;
+                const allDone = total === 0 || done === total;
                 return (
-                  <button
-                    key={zone.id}
-                    onClick={() => !allDone && pickZone(zone)}
-                    disabled={allDone}
+                  <button key={zone.id} onClick={() => !allDone && pickZone(zone)} disabled={allDone}
                     className={`magic-card p-4 text-center flex flex-col items-center gap-2 transition-all ${allDone ? "opacity-30 cursor-not-allowed" : "hover:scale-[1.03]"}`}
-                    style={{ borderColor: `${zone.color}55`, boxShadow: `0 0 20px ${zone.color}15` }}
-                  >
+                    style={{ borderColor: `${zone.color}55`, boxShadow: `0 0 20px ${zone.color}15` }}>
                     <span className="text-3xl">{zone.emoji}</span>
                     <span className="font-cinzel font-bold text-sm" style={{ color: zone.color }}>{zone.name}</span>
                     <div className="magic-progress w-full">
-                      <div className="magic-progress-fill" style={{ width: `${(done / total) * 100}%`, background: zone.color }} />
+                      <div className="magic-progress-fill" style={{ width: `${total > 0 ? (done / total) * 100 : 0}%`, background: zone.color }} />
                     </div>
                     <span className="text-xs text-white/30 font-golos">{done}/{total} пройдено</span>
                   </button>
@@ -468,13 +279,9 @@ export default function Index() {
                 const isDone = available.length === 0;
                 const isActive = selectedTopic === topic;
                 return (
-                  <button
-                    key={topic}
-                    onClick={() => !isDone && pickTopic(topic)}
-                    disabled={isDone}
+                  <button key={topic} onClick={() => !isDone && pickTopic(topic)} disabled={isDone}
                     className={`magic-card p-4 text-center flex flex-col items-center gap-2 transition-all ${isDone ? "opacity-30 cursor-not-allowed" : isActive ? "scale-105" : "hover:scale-[1.03]"}`}
-                    style={isActive ? { borderColor: meta.color, boxShadow: `0 0 20px ${meta.color}40` } : {}}
-                  >
+                    style={isActive ? { borderColor: meta.color, boxShadow: `0 0 20px ${meta.color}40` } : {}}>
                     <span className="text-3xl">{meta.emoji}</span>
                     <span className="font-golos font-bold text-sm leading-tight" style={{ color: meta.color }}>{meta.label}</span>
                     <span className="text-xs text-white/30 font-golos">{available.length} заданий</span>
@@ -483,19 +290,15 @@ export default function Index() {
               })}
             </div>
 
-            {/* Quest list for selected topic */}
             {selectedTopic && questsForTopic.length > 0 && (
               <div className="flex flex-col gap-3 mt-2">
                 <div className="magic-divider" />
                 <p className="font-cormorant text-lg italic text-center text-yellow-100/60">Выберите задание:</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {questsForTopic.map(quest => (
-                    <button
-                      key={quest.id}
-                      onClick={() => pickQuest(quest)}
+                    <button key={quest.id} onClick={() => pickQuest(quest)}
                       className="magic-card p-4 text-left hover:scale-[1.02] transition-all flex flex-col gap-2"
-                      style={{ borderTopColor: TOPIC_META[quest.topic].color, borderTopWidth: 3 }}
-                    >
+                      style={{ borderTopColor: TOPIC_META[quest.topic].color, borderTopWidth: 3 }}>
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-2xl">{quest.emoji}</span>
                         <span className="font-cinzel font-bold text-yellow-400 text-sm">⭐ {quest.points}</span>
