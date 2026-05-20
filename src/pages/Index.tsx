@@ -297,15 +297,20 @@ export default function Index() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {questsForTopic.map(quest => (
                     <button key={quest.id} onClick={() => pickQuest(quest)}
-                      className="magic-card p-4 text-left hover:scale-[1.02] transition-all flex flex-col gap-2"
+                      className="magic-card text-left hover:scale-[1.02] transition-all flex flex-col overflow-hidden"
                       style={{ borderTopColor: TOPIC_META[quest.topic].color, borderTopWidth: 3 }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-2xl">{quest.emoji}</span>
-                        <span className="font-cinzel font-bold text-yellow-400 text-sm">⭐ {quest.points}</span>
+                      {quest.imageUrl && (
+                        <img src={quest.imageUrl} alt="" className="w-full h-28 object-cover" />
+                      )}
+                      <div className="p-4 flex flex-col gap-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-2xl">{quest.emoji}</span>
+                          <span className="font-cinzel font-bold text-yellow-400 text-sm">⭐ {quest.points}</span>
+                        </div>
+                        <h3 className="font-cinzel font-bold text-yellow-100 text-sm">{quest.title}</h3>
+                        <p className="font-golos text-xs text-white/50 line-clamp-2">{quest.description}</p>
+                        <span className="font-golos text-xs text-white/30">⏱ {quest.timeLimit}с</span>
                       </div>
-                      <h3 className="font-cinzel font-bold text-yellow-100 text-sm">{quest.title}</h3>
-                      <p className="font-golos text-xs text-white/50 line-clamp-2">{quest.description}</p>
-                      <span className="font-golos text-xs text-white/30">⏱ {quest.timeLimit}с</span>
                     </button>
                   ))}
                 </div>
@@ -331,7 +336,10 @@ export default function Index() {
                 <span>{TOPIC_META[selectedQuest.topic].emoji}</span>
                 <span style={{ color: TOPIC_META[selectedQuest.topic].color }} className="font-golos font-medium">{TOPIC_META[selectedQuest.topic].label}</span>
               </div>
-              <span className="text-5xl float-anim">{selectedQuest.emoji}</span>
+              {selectedQuest.imageUrl
+                ? <img src={selectedQuest.imageUrl} alt="" className="w-full max-h-56 object-cover rounded-2xl border border-white/10 shadow-xl" />
+                : <span className="text-5xl float-anim">{selectedQuest.emoji}</span>
+              }
               <h2 className="font-cinzel text-2xl font-bold text-yellow-100">{selectedQuest.title}</h2>
               <div className="magic-divider w-48" />
               <p className="font-cormorant text-lg text-white/80 leading-relaxed max-w-lg">{selectedQuest.description}</p>

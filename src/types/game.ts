@@ -10,6 +10,7 @@ export interface Quest {
   points: number;
   timeLimit: number;
   emoji: string;
+  imageUrl?: string;
 }
 
 export interface Zone {

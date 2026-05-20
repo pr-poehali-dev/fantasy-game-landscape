@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { Zone, Team, CategoryTopic } from "@/types/game";
 import { TOPIC_META } from "@/data/gameData";
+
+const UPLOAD_URL = "https://functions.poehali.dev/8a5e4d67-8f84-453c-beab-68dfd5269983";
 
 interface SettingsPageProps {
   teams: Team[];
@@ -15,13 +17,92 @@ type SettingsTab = "teams" | "quests";
 let nextQuestId = 9000;
 function getNextId() { return ++nextQuestId; }
 
+interface NewQuestState {
+  title: string; description: string; topic: CategoryTopic;
+  points: number; timeLimit: number; emoji: string; imageUrl?: string;
+}
+
+// ─── Image uploader component ──────────────────────────────────────────────
+function ImageUploader({ currentUrl, onUploaded }: { currentUrl?: string; onUploaded: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    if (!file) return;
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      const base64 = dataUrl.split(",")[1];
+      setPreview(dataUrl);
+      try {
+        const res = await fetch(UPLOAD_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, contentType: file.type }),
+        });
+        const data = await res.json();
+        if (data.url) onUploaded(data.url);
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleRemove() {
+    setPreview(null);
+    onUploaded("");
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-xs text-white/40 font-golos">Фото к заданию</label>
+      {preview ? (
+        <div className="relative group w-full">
+          <img src={preview} alt="" className="w-full h-36 object-cover rounded-xl border border-white/10" />
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+              <span className="text-yellow-400 font-golos text-sm animate-pulse">Загрузка...</span>
+            </div>
+          )}
+          {!uploading && (
+            <button
+              onClick={handleRemove}
+              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/80 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            >✕</button>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="w-full h-24 rounded-xl border-2 border-dashed border-white/15 hover:border-yellow-400/40 text-white/30 hover:text-yellow-400/60 transition-all flex flex-col items-center justify-center gap-1 font-golos text-sm"
+        >
+          <span className="text-2xl">📷</span>
+          <span>Нажмите чтобы прикрепить фото</span>
+        </button>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
+      />
+    </div>
+  );
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────
 export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChange, onBack }: SettingsPageProps) {
   const [tab, setTab] = useState<SettingsTab>("teams");
   const [selectedZoneId, setSelectedZoneId] = useState<string>(zones[0]?.id ?? "");
   const [editingQuestId, setEditingQuestId] = useState<number | null>(null);
-  const [newQuest, setNewQuest] = useState<{
-    title: string; description: string; topic: CategoryTopic; points: number; timeLimit: number; emoji: string;
-  }>({ title: "", description: "", topic: "nature", points: 100, timeLimit: 60, emoji: "🌿" });
+  const [newQuest, setNewQuest] = useState<NewQuestState>({
+    title: "", description: "", topic: "nature", points: 100, timeLimit: 60, emoji: "🌿",
+  });
   const [showAddForm, setShowAddForm] = useState(false);
 
   const selectedZone = zones.find(z => z.id === selectedZoneId) ?? zones[0];
@@ -33,6 +114,12 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
   function updateZoneQuest(zoneId: string, questId: number, field: string, value: string | number) {
     onZonesChange(zones.map(z => z.id !== zoneId ? z : {
       ...z, quests: z.quests.map(q => q.id !== questId ? q : { ...q, [field]: value })
+    }));
+  }
+
+  function removeQuestImage(zoneId: string, questId: number) {
+    onZonesChange(zones.map(z => z.id !== zoneId ? z : {
+      ...z, quests: z.quests.map(q => q.id !== questId ? q : { ...q, imageUrl: undefined })
     }));
   }
 
@@ -57,13 +144,11 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
     <div className="magic-bg min-h-screen relative overflow-hidden">
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6 flex flex-col gap-5">
 
-        {/* Header */}
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="btn-magic px-4 py-2 rounded-xl font-golos text-sm text-yellow-100">← Назад</button>
           <h1 className="font-cinzel text-2xl font-bold shimmer-text">Настройки</h1>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-2">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -81,25 +166,15 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
               <div key={team.id} className="magic-card p-4 flex items-center gap-3" style={team.borderStyle}>
                 <div className="flex flex-col items-center gap-1">
                   <div className="text-xs text-white/30 font-golos">Эмодзи</div>
-                  <input
-                    type="text"
-                    value={team.emoji}
-                    onChange={e => updateTeam(idx, "emoji", e.target.value)}
-                    maxLength={4}
+                  <input type="text" value={team.emoji} onChange={e => updateTeam(idx, "emoji", e.target.value)} maxLength={4}
                     className="w-14 h-14 bg-white/5 border border-white/10 rounded-xl text-center text-3xl outline-none focus:border-yellow-400/50 transition-colors"
-                    style={{ caretColor: team.color }}
-                  />
+                    style={{ caretColor: team.color }} />
                 </div>
                 <div className="flex-1">
                   <div className="text-xs font-golos text-white/30 mb-1">Название команды</div>
-                  <input
-                    type="text"
-                    value={team.name}
-                    onChange={e => updateTeam(idx, "name", e.target.value)}
-                    maxLength={30}
+                  <input type="text" value={team.name} onChange={e => updateTeam(idx, "name", e.target.value)} maxLength={30}
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 font-cinzel text-sm text-yellow-100 outline-none focus:border-yellow-400/50 transition-colors"
-                    style={{ caretColor: team.color }}
-                  />
+                    style={{ caretColor: team.color }} />
                 </div>
               </div>
             ))}
@@ -110,7 +185,6 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
         {tab === "quests" && (
           <div className="flex flex-col gap-4 fade-in-up">
 
-            {/* Zone selector */}
             <div>
               <div className="text-xs font-golos text-white/30 mb-2">Выберите раздел</div>
               <div className="grid grid-cols-3 gap-2">
@@ -171,6 +245,12 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
                         <input type="range" min={10} max={300} step={5} value={newQuest.timeLimit} onChange={e => setNewQuest(p => ({ ...p, timeLimit: +e.target.value }))} className="w-full accent-yellow-400 mt-1" />
                         <div className="flex justify-between text-xs text-white/20 font-golos mt-0.5"><span>10с</span><span>300с</span></div>
                       </div>
+                      <div className="col-span-2">
+                        <ImageUploader
+                          currentUrl={newQuest.imageUrl}
+                          onUploaded={url => setNewQuest(p => ({ ...p, imageUrl: url || undefined }))}
+                        />
+                      </div>
                     </div>
                     <button onClick={addQuest} disabled={!newQuest.title.trim()} className="btn-gold py-2 rounded-xl font-cinzel font-bold disabled:opacity-30">✓ Добавить задание</button>
                   </div>
@@ -183,13 +263,17 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
                   return (
                     <div key={quest.id} className="magic-card p-4 flex flex-col gap-3" style={isEditing ? { borderColor: meta.color, boxShadow: `0 0 16px ${meta.color}30` } : {}}>
                       <div className="flex items-start gap-3">
-                        <span className="text-2xl">{quest.emoji}</span>
+                        {quest.imageUrl
+                          ? <img src={quest.imageUrl} alt="" className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0" />
+                          : <span className="text-2xl shrink-0">{quest.emoji}</span>
+                        }
                         <div className="flex-1 min-w-0">
                           <div className="font-cinzel font-bold text-sm text-yellow-100 truncate">{quest.title}</div>
                           <div className="flex gap-2 mt-1 flex-wrap">
                             <span className="text-xs px-2 py-0.5 rounded-full font-golos" style={{ background: `${meta.color}20`, color: meta.color }}>{meta.emoji} {meta.label}</span>
                             <span className="text-xs text-yellow-400 font-cinzel">⭐ {quest.points}</span>
                             <span className="text-xs text-white/40 font-golos">⏱ {quest.timeLimit}с</span>
+                            {quest.imageUrl && <span className="text-xs text-white/40 font-golos">📷 фото</span>}
                           </div>
                         </div>
                         <div className="flex gap-1 shrink-0">
@@ -234,6 +318,13 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
                             <input type="range" min={10} max={300} step={5} value={quest.timeLimit} onChange={e => updateZoneQuest(selectedZone.id, quest.id, "timeLimit", +e.target.value)} className="w-full accent-yellow-400 mt-1" />
                             <div className="flex justify-between text-xs text-white/20 font-golos mt-0.5"><span>10с</span><span>300с</span></div>
                           </div>
+                          <ImageUploader
+                            currentUrl={quest.imageUrl}
+                            onUploaded={url => url
+                              ? updateZoneQuest(selectedZone.id, quest.id, "imageUrl", url)
+                              : removeQuestImage(selectedZone.id, quest.id)
+                            }
+                          />
                           <button onClick={() => setEditingQuestId(null)} className="btn-gold py-2 rounded-xl font-cinzel font-bold text-sm">✓ Сохранить</button>
                         </div>
                       )}
