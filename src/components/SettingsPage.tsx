@@ -10,13 +10,10 @@ interface SettingsPageProps {
   onBack: () => void;
 }
 
-type SettingsTab = "teams" | "quests" | "zones";
+type SettingsTab = "teams" | "quests";
 
 let nextQuestId = 9000;
-
-function getNextId() {
-  return ++nextQuestId;
-}
+function getNextId() { return ++nextQuestId; }
 
 export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChange, onBack }: SettingsPageProps) {
   const [tab, setTab] = useState<SettingsTab>("teams");
@@ -24,39 +21,35 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
   const [editingQuestId, setEditingQuestId] = useState<number | null>(null);
   const [newQuest, setNewQuest] = useState<{
     title: string; description: string; topic: CategoryTopic; points: number; timeLimit: number; emoji: string;
-  }>({ title: "", description: "", topic: "special", points: 100, timeLimit: 60, emoji: "⭐" });
+  }>({ title: "", description: "", topic: "nature", points: 100, timeLimit: 60, emoji: "🌿" });
   const [showAddForm, setShowAddForm] = useState(false);
 
   const selectedZone = zones.find(z => z.id === selectedZoneId) ?? zones[0];
 
-  function updateTeamName(idx: number, name: string) {
-    const next = teams.map((t, i) => i === idx ? { ...t, name } : t);
-    onTeamsChange(next);
+  function updateTeam(idx: number, field: "name" | "emoji", value: string) {
+    onTeamsChange(teams.map((t, i) => i === idx ? { ...t, [field]: value } : t));
   }
 
   function updateZoneQuest(zoneId: string, questId: number, field: string, value: string | number) {
-    const next = zones.map(z => z.id !== zoneId ? z : {
+    onZonesChange(zones.map(z => z.id !== zoneId ? z : {
       ...z, quests: z.quests.map(q => q.id !== questId ? q : { ...q, [field]: value })
-    });
-    onZonesChange(next);
+    }));
   }
 
   function deleteQuest(zoneId: string, questId: number) {
-    const next = zones.map(z => z.id !== zoneId ? z : { ...z, quests: z.quests.filter(q => q.id !== questId) });
-    onZonesChange(next);
+    onZonesChange(zones.map(z => z.id !== zoneId ? z : { ...z, quests: z.quests.filter(q => q.id !== questId) }));
   }
 
   function addQuest() {
     if (!newQuest.title.trim()) return;
     const quest = { ...newQuest, id: getNextId() };
-    const next = zones.map(z => z.id !== selectedZoneId ? z : { ...z, quests: [...z.quests, quest] });
-    onZonesChange(next);
-    setNewQuest({ title: "", description: "", topic: "special", points: 100, timeLimit: 60, emoji: "⭐" });
+    onZonesChange(zones.map(z => z.id !== selectedZoneId ? z : { ...z, quests: [...z.quests, quest] }));
+    setNewQuest({ title: "", description: "", topic: "nature", points: 100, timeLimit: 60, emoji: "🌿" });
     setShowAddForm(false);
   }
 
   const tabs: { id: SettingsTab; label: string; emoji: string }[] = [
-    { id: "teams", label: "Команды", emoji: "🏆" },
+    { id: "teams",  label: "Команды", emoji: "🏆" },
     { id: "quests", label: "Задания", emoji: "📝" },
   ];
 
@@ -73,11 +66,8 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
         {/* Tabs */}
         <div className="flex gap-2">
           {tabs.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex-1 py-3 rounded-xl font-cinzel font-bold text-sm transition-all ${tab === t.id ? "btn-gold" : "btn-magic text-yellow-100/60"}`}
-            >
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex-1 py-3 rounded-xl font-cinzel font-bold text-sm transition-all ${tab === t.id ? "btn-gold" : "btn-magic text-yellow-100/60"}`}>
               {t.emoji} {t.label}
             </button>
           ))}
@@ -86,16 +76,26 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
         {/* TAB: TEAMS */}
         {tab === "teams" && (
           <div className="flex flex-col gap-4 fade-in-up">
-            <p className="font-cormorant text-lg italic text-yellow-100/60 text-center">Измените названия команд</p>
+            <p className="font-cormorant text-lg italic text-yellow-100/60 text-center">Измените название и эмодзи команд</p>
             {teams.map((team, idx) => (
-              <div key={team.id} className="magic-card p-4 flex items-center gap-4" style={team.borderStyle}>
-                <span className="text-3xl">{team.emoji}</span>
+              <div key={team.id} className="magic-card p-4 flex items-center gap-3" style={team.borderStyle}>
+                <div className="flex flex-col items-center gap-1">
+                  <div className="text-xs text-white/30 font-golos">Эмодзи</div>
+                  <input
+                    type="text"
+                    value={team.emoji}
+                    onChange={e => updateTeam(idx, "emoji", e.target.value)}
+                    maxLength={4}
+                    className="w-14 h-14 bg-white/5 border border-white/10 rounded-xl text-center text-3xl outline-none focus:border-yellow-400/50 transition-colors"
+                    style={{ caretColor: team.color }}
+                  />
+                </div>
                 <div className="flex-1">
                   <div className="text-xs font-golos text-white/30 mb-1">Название команды</div>
                   <input
                     type="text"
                     value={team.name}
-                    onChange={e => updateTeamName(idx, e.target.value)}
+                    onChange={e => updateTeam(idx, "name", e.target.value)}
                     maxLength={30}
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 font-cinzel text-sm text-yellow-100 outline-none focus:border-yellow-400/50 transition-colors"
                     style={{ caretColor: team.color }}
@@ -115,12 +115,10 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
               <div className="text-xs font-golos text-white/30 mb-2">Выберите раздел</div>
               <div className="grid grid-cols-3 gap-2">
                 {zones.map(z => (
-                  <button
-                    key={z.id}
+                  <button key={z.id}
                     onClick={() => { setSelectedZoneId(z.id); setEditingQuestId(null); setShowAddForm(false); }}
                     className={`magic-card p-2 text-center transition-all ${selectedZoneId === z.id ? "scale-105" : "opacity-60 hover:opacity-100"}`}
-                    style={selectedZoneId === z.id ? { borderColor: z.color, boxShadow: `0 0 16px ${z.color}40` } : {}}
-                  >
+                    style={selectedZoneId === z.id ? { borderColor: z.color, boxShadow: `0 0 16px ${z.color}40` } : {}}>
                     <div className="text-xl">{z.emoji}</div>
                     <div className="font-cinzel text-xs leading-tight" style={selectedZoneId === z.id ? { color: z.color } : {}}>{z.name}</div>
                   </button>
@@ -128,7 +126,6 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
               </div>
             </div>
 
-            {/* Quest list */}
             {selectedZone && (
               <div className="flex flex-col gap-3">
                 <div className="magic-divider" />
@@ -143,7 +140,6 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
                 {showAddForm && (
                   <div className="magic-card p-5 flex flex-col gap-3 fade-in-up" style={{ borderColor: `${selectedZone.color}80` }}>
                     <p className="font-cinzel text-sm text-yellow-400">Новое задание</p>
-
                     <div className="grid grid-cols-2 gap-3">
                       <div className="col-span-2">
                         <label className="text-xs text-white/40 font-golos">Название *</label>
@@ -165,22 +161,17 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
                           ))}
                         </select>
                       </div>
-                      <div>
-                        <label className="text-xs text-white/40 font-golos">Очки ⭐</label>
-                        <div className="flex items-center gap-2">
-                          <input type="range" min={50} max={300} step={10} value={newQuest.points} onChange={e => setNewQuest(p => ({ ...p, points: +e.target.value }))} className="flex-1 accent-yellow-400" />
-                          <span className="font-cinzel text-yellow-400 font-bold w-10 text-right">{newQuest.points}</span>
-                        </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-white/40 font-golos">Очки ⭐ — {newQuest.points}</label>
+                        <input type="range" min={0} max={200} step={5} value={newQuest.points} onChange={e => setNewQuest(p => ({ ...p, points: +e.target.value }))} className="w-full accent-yellow-400 mt-1" />
+                        <div className="flex justify-between text-xs text-white/20 font-golos mt-0.5"><span>0</span><span>200</span></div>
                       </div>
-                      <div>
-                        <label className="text-xs text-white/40 font-golos">Время ⏱</label>
-                        <div className="flex items-center gap-2">
-                          <input type="range" min={10} max={300} step={5} value={newQuest.timeLimit} onChange={e => setNewQuest(p => ({ ...p, timeLimit: +e.target.value }))} className="flex-1 accent-yellow-400" />
-                          <span className="font-cinzel text-yellow-400 font-bold w-12 text-right">{newQuest.timeLimit}с</span>
-                        </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-white/40 font-golos">Время ⏱ — {newQuest.timeLimit}с</label>
+                        <input type="range" min={10} max={300} step={5} value={newQuest.timeLimit} onChange={e => setNewQuest(p => ({ ...p, timeLimit: +e.target.value }))} className="w-full accent-yellow-400 mt-1" />
+                        <div className="flex justify-between text-xs text-white/20 font-golos mt-0.5"><span>10с</span><span>300с</span></div>
                       </div>
                     </div>
-
                     <button onClick={addQuest} disabled={!newQuest.title.trim()} className="btn-gold py-2 rounded-xl font-cinzel font-bold disabled:opacity-30">✓ Добавить задание</button>
                   </div>
                 )}
@@ -232,14 +223,16 @@ export default function SettingsPage({ teams, zones, onTeamsChange, onZonesChang
                                 ))}
                               </select>
                             </div>
-                            <div>
-                              <label className="text-xs text-white/40 font-golos">Очки ⭐ — {quest.points}</label>
-                              <input type="range" min={50} max={300} step={10} value={quest.points} onChange={e => updateZoneQuest(selectedZone.id, quest.id, "points", +e.target.value)} className="w-full accent-yellow-400 mt-1" />
-                            </div>
-                            <div>
-                              <label className="text-xs text-white/40 font-golos">Время ⏱ — {quest.timeLimit}с</label>
-                              <input type="range" min={10} max={300} step={5} value={quest.timeLimit} onChange={e => updateZoneQuest(selectedZone.id, quest.id, "timeLimit", +e.target.value)} className="w-full accent-yellow-400 mt-1" />
-                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-white/40 font-golos">Очки ⭐ — {quest.points}</label>
+                            <input type="range" min={0} max={200} step={5} value={quest.points} onChange={e => updateZoneQuest(selectedZone.id, quest.id, "points", +e.target.value)} className="w-full accent-yellow-400 mt-1" />
+                            <div className="flex justify-between text-xs text-white/20 font-golos mt-0.5"><span>0</span><span>200</span></div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-white/40 font-golos">Время ⏱ — {quest.timeLimit}с</label>
+                            <input type="range" min={10} max={300} step={5} value={quest.timeLimit} onChange={e => updateZoneQuest(selectedZone.id, quest.id, "timeLimit", +e.target.value)} className="w-full accent-yellow-400 mt-1" />
+                            <div className="flex justify-between text-xs text-white/20 font-golos mt-0.5"><span>10с</span><span>300с</span></div>
                           </div>
                           <button onClick={() => setEditingQuestId(null)} className="btn-gold py-2 rounded-xl font-cinzel font-bold text-sm">✓ Сохранить</button>
                         </div>

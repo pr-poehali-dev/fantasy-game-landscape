@@ -145,12 +145,12 @@ export default function Index() {
           </div>
           <div>
             <h1 className="font-cinzel text-4xl md:text-6xl font-black shimmer-text mb-3 leading-tight">Магический Квест</h1>
-            <p className="font-cormorant text-xl text-yellow-100/70 italic">12 земель · 7 тем · 4 команды</p>
+            <p className="font-cormorant text-xl text-yellow-100/70 italic">12 земель · 6 тем · 4 команды</p>
           </div>
           <div className="magic-divider w-64" />
-          <div className="grid grid-cols-4 gap-2 w-full">
+          <div className="flex flex-wrap justify-center gap-2 w-full">
             {Object.values(TOPIC_META).map(t => (
-              <div key={t.label} className="magic-card p-3 flex flex-col items-center gap-1">
+              <div key={t.label} className="magic-card p-3 flex flex-col items-center gap-1 w-24">
                 <span className="text-2xl">{t.emoji}</span>
                 <span className="font-golos text-xs text-center leading-tight" style={{ color: t.color }}>{t.label}</span>
               </div>
@@ -272,7 +272,7 @@ export default function Index() {
               <div className="magic-divider" />
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               {(Object.keys(TOPIC_META) as CategoryTopic[]).map(topic => {
                 const meta = TOPIC_META[topic];
                 const available = selectedZone.quests.filter(q => !completedIds.has(q.id) && q.topic === topic);
@@ -280,7 +280,7 @@ export default function Index() {
                 const isActive = selectedTopic === topic;
                 return (
                   <button key={topic} onClick={() => !isDone && pickTopic(topic)} disabled={isDone}
-                    className={`magic-card p-4 text-center flex flex-col items-center gap-2 transition-all ${isDone ? "opacity-30 cursor-not-allowed" : isActive ? "scale-105" : "hover:scale-[1.03]"}`}
+                    className={`magic-card p-4 text-center flex flex-col items-center gap-2 transition-all w-32 ${isDone ? "opacity-30 cursor-not-allowed" : isActive ? "scale-105" : "hover:scale-[1.03]"}`}
                     style={isActive ? { borderColor: meta.color, boxShadow: `0 0 20px ${meta.color}40` } : {}}>
                     <span className="text-3xl">{meta.emoji}</span>
                     <span className="font-golos font-bold text-sm leading-tight" style={{ color: meta.color }}>{meta.label}</span>
